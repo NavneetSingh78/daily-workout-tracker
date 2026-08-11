@@ -266,6 +266,20 @@
         <span>Session length:</span>
         <input type="number" id="duration-input" min="1" max="120" value="15"> min
       </div>
+      <div class="duration-row">
+        <span>Background sound:</span>
+        <select id="sound-select">
+          <option value="none">None</option>
+          <option value="drone">Calm Drone</option>
+          <option value="whitenoise">White Noise</option>
+          <option value="ocean">Ocean Waves</option>
+          <option value="bowl">Singing Bowl</option>
+        </select>
+      </div>
+      <div class="duration-row">
+        <span>Volume:</span>
+        <input type="range" id="sound-volume" min="0" max="100" value="50" style="width:120px;">
+      </div>
       <div class="timer-display" id="timer-display">15:00</div>
       <div class="status-line" id="meditation-status"></div>
       <div class="timer-controls">
@@ -347,13 +361,151 @@
 
   document.getElementById('today-label').textContent = formatDateLabel(today);
 
+  // ---------- Ambient Sound Engine (synthesized, no external audio files) ----------
+  const SoundEngine = {
+    ctx: null,
+    masterGain: null,
+    nodes: [],
+    intervalId: null,
+
+    ensureContext() {
+      if (!this.ctx) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new Ctx();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.3;
+        this.masterGain.connect(this.ctx.destination);
+      }
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+    },
+
+    setVolume(pct) {
+      if (this.masterGain) {
+        this.masterGain.gain.setTargetAtTime((pct / 100) * 0.6, this.ctx.currentTime, 0.1);
+      }
+    },
+
+    stop() {
+      this.nodes.forEach(n => {
+        try { n.stop && n.stop(); } catch (e) {}
+        try { n.disconnect && n.disconnect(); } catch (e) {}
+      });
+      this.nodes = [];
+      if (this.intervalId) {
+        clearInterval(this.intervalId);
+        this.intervalId = null;
+      }
+    },
+
+    start(type, volumePct) {
+      this.stop();
+      if (type === 'none') return;
+      try {
+        this.ensureContext();
+      } catch (e) {
+        console.error('Web Audio not available', e);
+        return;
+      }
+      this.setVolume(volumePct);
+      if (type === 'drone') this._startDrone();
+      else if (type === 'whitenoise') this._startNoise(false);
+      else if (type === 'ocean') this._startNoise(true);
+      else if (type === 'bowl') this._startBowl();
+    },
+
+    _makeNoiseBuffer() {
+      const size = this.ctx.sampleRate * 2;
+      const buffer = this.ctx.createBuffer(1, size, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < size; i++) data[i] = Math.random() * 2 - 1;
+      return buffer;
+    },
+
+    _startDrone() {
+      const freqs = [110, 165, 220];
+      freqs.forEach((f, i) => {
+        const osc = this.ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = f;
+        osc.detune.value = (i - 1) * 4;
+        const g = this.ctx.createGain();
+        g.gain.value = 0;
+        osc.connect(g).connect(this.masterGain);
+        osc.start();
+        g.gain.linearRampToValueAtTime(0.16 / freqs.length, this.ctx.currentTime + 2);
+        this.nodes.push(osc, g);
+      });
+    },
+
+    _startNoise(isOcean) {
+      const src = this.ctx.createBufferSource();
+      src.buffer = this._makeNoiseBuffer();
+      src.loop = true;
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = isOcean ? 500 : 3000;
+      const g = this.ctx.createGain();
+      g.gain.value = 0;
+      src.connect(filter).connect(g).connect(this.masterGain);
+      src.start();
+      g.gain.linearRampToValueAtTime(isOcean ? 0.28 : 0.14, this.ctx.currentTime + 1.5);
+      this.nodes.push(src, filter, g);
+      if (isOcean) {
+        let t = 0;
+        this.intervalId = setInterval(() => {
+          t += 0.15;
+          const wave = 0.16 + 0.12 * Math.sin(t);
+          g.gain.linearRampToValueAtTime(Math.max(0.04, wave), this.ctx.currentTime + 0.15);
+        }, 150);
+      }
+    },
+
+    _startBowl() {
+      const strike = () => {
+        const freqs = [220, 330, 440];
+        const now = this.ctx.currentTime;
+        freqs.forEach((f, i) => {
+          const osc = this.ctx.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.value = f;
+          const g = this.ctx.createGain();
+          g.gain.setValueAtTime(0, now);
+          g.gain.linearRampToValueAtTime(0.22 / (i + 1), now + 0.05);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 6);
+          osc.connect(g).connect(this.masterGain);
+          osc.start(now);
+          osc.stop(now + 6.2);
+        });
+      };
+      strike();
+      this.intervalId = setInterval(strike, 45000);
+    }
+  };
+
   // ---------- Meditation Timer ----------
   const durationInput = document.getElementById('duration-input');
+  const soundSelect = document.getElementById('sound-select');
+  const soundVolume = document.getElementById('sound-volume');
   const timerDisplay = document.getElementById('timer-display');
   const startBtn = document.getElementById('start-btn');
   const pauseBtn = document.getElementById('pause-btn');
   const resetBtn = document.getElementById('reset-btn');
   const meditationStatus = document.getElementById('meditation-status');
+
+  const savedSound = localStorage.getItem('meditationSoundChoice');
+  const savedVolume = localStorage.getItem('meditationSoundVolume');
+  if (savedSound) soundSelect.value = savedSound;
+  if (savedVolume) soundVolume.value = savedVolume;
+
+  soundSelect.addEventListener('change', () => {
+    localStorage.setItem('meditationSoundChoice', soundSelect.value);
+    if (isRunning) SoundEngine.start(soundSelect.value, Number(soundVolume.value));
+  });
+
+  soundVolume.addEventListener('input', () => {
+    localStorage.setItem('meditationSoundVolume', soundVolume.value);
+    SoundEngine.setVolume(Number(soundVolume.value));
+  });
 
   let totalSeconds = parseInt(durationInput.value, 10) * 60;
   let remainingSeconds = totalSeconds;
@@ -389,6 +541,7 @@
     resetBtn.disabled = false;
     durationInput.disabled = true;
     meditationStatus.textContent = 'Session in progress…';
+    SoundEngine.start(soundSelect.value, Number(soundVolume.value));
     timerInterval = setInterval(() => {
       remainingSeconds--;
       updateTimerDisplay();
@@ -407,6 +560,7 @@
     startBtn.disabled = false;
     pauseBtn.disabled = true;
     meditationStatus.textContent = 'Paused';
+    SoundEngine.stop();
   });
 
   resetBtn.addEventListener('click', () => {
@@ -419,9 +573,11 @@
     resetBtn.disabled = true;
     durationInput.disabled = false;
     meditationStatus.textContent = '';
+    SoundEngine.stop();
   });
 
   function completeSession() {
+    SoundEngine.stop();
     const minutes = Math.round(totalSeconds / 60);
     const day = getDay(today);
     day.meditationSessions.push({
