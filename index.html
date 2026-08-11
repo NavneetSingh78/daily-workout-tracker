@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Meditation &amp; Workout Tracker</title>
+<style>
+  :root {
+    --bg: #f4f1ea;
+    --card: #ffffff;
+    --ink: #2b2b2b;
+    --muted: #6b6b6b;
+    --accent: #4f7a5c;
+    --accent-dark: #3a5c44;
+    --line: #e3ddd0;
+    --warn: #b5533c;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.4;
+  }
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 16px 60px;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-size: 1.6rem;
+    margin: 0 0 4px;
+  }
+  header p {
+    color: var(--muted);
+    margin: 0;
+    font-size: 0.9rem;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 18px;
+  }
+  .card h2 {
+    margin: 0 0 12px;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  /* Meditation */
+  .meditation-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .timer-display {
+    font-size: 2.8rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--accent-dark);
+  }
+  .timer-controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .duration-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .duration-row input {
+    width: 60px;
+    padding: 4px 6px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    background: var(--accent);
+    color: white;
+    transition: background 0.15s;
+  }
+  button:hover { background: var(--accent-dark); }
+  button.secondary {
+    background: transparent;
+    color: var(--accent-dark);
+    border: 1px solid var(--accent);
+  }
+  button.secondary:hover { background: #eef3ee; }
+  button.danger {
+    background: transparent;
+    color: var(--warn);
+    border: 1px solid var(--warn);
+    padding: 4px 10px;
+    font-size: 0.75rem;
+  }
+  button.danger:hover { background: #fbeceb; }
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .status-line {
+    font-size: 0.85rem;
+    color: var(--muted);
+    min-height: 1.2em;
+  }
+  /* Workout form */
+  form.workout-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .field-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  .field-row label {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.75rem;
+    color: var(--muted);
+    gap: 4px;
+  }
+  input, select {
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    width: 100%;
+  }
+  .today-exercises {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .exercise-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #faf8f3;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+  .exercise-item .meta {
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  /* History */
+  .history-entry {
+    border-bottom: 1px solid var(--line);
+    padding: 12px 0;
+  }
+  .history-entry:last-child { border-bottom: none; }
+  .history-date {
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .history-date .day-actions button {
+    margin-left: 6px;
+  }
+  .badge {
+    display: inline-block;
+    background: #eef3ee;
+    color: var(--accent-dark);
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-top: 4px;
+  }
+  .history-exercises {
+    margin-top: 6px;
+    font-size: 0.85rem;
+    color: var(--ink);
+  }
+  .history-exercises div {
+    padding: 2px 0;
+    color: var(--muted);
+  }
+  .empty-state {
+    color: var(--muted);
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 20px 0;
+  }
+  .stats-row {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    text-align: center;
+    margin-bottom: 18px;
+  }
+  .stat {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 12px 18px;
+    flex: 1;
+  }
+  .stat .num {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--accent-dark);
+  }
+  .stat .label {
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  @media (max-width: 480px) {
+    .field-row { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Daily Meditation &amp; Workout Tracker</h1>
+    <p id="today-label"></p>
+  </header>
+
+  <div class="stats-row">
+    <div class="stat">
+      <div class="num" id="stat-streak">0</div>
+      <div class="label">Day Streak</div>
+    </div>
+    <div class="stat">
+      <div class="num" id="stat-total-sessions">0</div>
+      <div class="label">Total Sessions</div>
+    </div>
+    <div class="stat">
+      <div class="num" id="stat-total-minutes">0</div>
+      <div class="label">Minutes Meditated</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🧘 Meditation</h2>
+    <div class="meditation-body">
+      <div class="duration-row">
+        <span>Session length:</span>
+        <input type="number" id="duration-input" min="1" max="120" value="15"> min
+      </div>
+      <div class="timer-display" id="timer-display">15:00</div>
+      <div class="status-line" id="meditation-status"></div>
+      <div class="timer-controls">
+        <button id="start-btn">Start</button>
+        <button id="pause-btn" class="secondary" disabled>Pause</button>
+        <button id="reset-btn" class="secondary" disabled>Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🧘‍♀️ Yoga / Workout</h2>
+    <form class="workout-form" id="workout-form">
+      <label>Exercise
+        <input type="text" id="ex-name" placeholder="e.g. Downward Dog, Squats" required>
+      </label>
+      <div class="field-row" style="grid-template-columns:1fr 1fr 1fr;">
+        <label>Sets
+          <input type="number" id="ex-sets" min="0" placeholder="3">
+        </label>
+        <label>Reps
+          <input type="number" id="ex-reps" min="0" placeholder="12">
+        </label>
+        <label>Weight (lbs)
+          <input type="number" id="ex-weight" min="0" step="0.5" placeholder="0">
+        </label>
+      </div>
+      <button type="submit">Add Exercise</button>
+    </form>
+    <div class="today-exercises" id="today-exercises"></div>
+  </div>
+
+  <div class="card">
+    <h2>📜 History</h2>
+    <div id="history-list"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const STORAGE_KEY = 'meditationWorkoutTracker';
+
+  function todayISO() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function formatDateLabel(iso) {
+    const d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  }
+
+  function loadData() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return { days: {} };
+      const parsed = JSON.parse(raw);
+      if (!parsed.days) parsed.days = {};
+      return parsed;
+    } catch (e) {
+      console.error('Failed to load tracker data', e);
+      return { days: {} };
+    }
+  }
+
+  function saveData() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function getDay(iso) {
+    if (!data.days[iso]) {
+      data.days[iso] = { meditationSessions: [], exercises: [] };
+    }
+    return data.days[iso];
+  }
+
+  let data = loadData();
+  const today = todayISO();
+
+  document.getElementById('today-label').textContent = formatDateLabel(today);
+
+  // ---------- Meditation Timer ----------
+  const durationInput = document.getElementById('duration-input');
+  const timerDisplay = document.getElementById('timer-display');
+  const startBtn = document.getElementById('start-btn');
+  const pauseBtn = document.getElementById('pause-btn');
+  const resetBtn = document.getElementById('reset-btn');
+  const meditationStatus = document.getElementById('meditation-status');
+
+  let totalSeconds = parseInt(durationInput.value, 10) * 60;
+  let remainingSeconds = totalSeconds;
+  let timerInterval = null;
+  let isRunning = false;
+
+  function formatTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  }
+
+  function updateTimerDisplay() {
+    timerDisplay.textContent = formatTime(remainingSeconds);
+  }
+
+  durationInput.addEventListener('change', () => {
+    if (isRunning) return;
+    let val = parseInt(durationInput.value, 10);
+    if (isNaN(val) || val < 1) val = 1;
+    if (val > 120) val = 120;
+    durationInput.value = val;
+    totalSeconds = val * 60;
+    remainingSeconds = totalSeconds;
+    updateTimerDisplay();
+  });
+
+  startBtn.addEventListener('click', () => {
+    if (isRunning) return;
+    isRunning = true;
+    startBtn.disabled = true;
+    pauseBtn.disabled = false;
+    resetBtn.disabled = false;
+    durationInput.disabled = true;
+    meditationStatus.textContent = 'Session in progress…';
+    timerInterval = setInterval(() => {
+      remainingSeconds--;
+      updateTimerDisplay();
+      if (remainingSeconds <= 0) {
+        clearInterval(timerInterval);
+        isRunning = false;
+        completeSession();
+      }
+    }, 1000);
+  });
+
+  pauseBtn.addEventListener('click', () => {
+    if (!isRunning) return;
+    clearInterval(timerInterval);
+    isRunning = false;
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+    meditationStatus.textContent = 'Paused';
+  });
+
+  resetBtn.addEventListener('click', () => {
+    clearInterval(timerInterval);
+    isRunning = false;
+    remainingSeconds = totalSeconds;
+    updateTimerDisplay();
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+    resetBtn.disabled = true;
+    durationInput.disabled = false;
+    meditationStatus.textContent = '';
+  });
+
+  function completeSession() {
+    const minutes = Math.round(totalSeconds / 60);
+    const day = getDay(today);
+    day.meditationSessions.push({
+      minutes: minutes,
+      completedAt: new Date().toISOString()
+    });
+    saveData();
+    meditationStatus.textContent = '✓ Session complete and saved!';
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+    resetBtn.disabled = true;
+    durationInput.disabled = false;
+    remainingSeconds = totalSeconds;
+    updateTimerDisplay();
+    renderAll();
+  }
+
+  updateTimerDisplay();
+
+  // ---------- Workout Form ----------
+  const workoutForm = document.getElementById('workout-form');
+  const exNameInput = document.getElementById('ex-name');
+  const exSetsInput = document.getElementById('ex-sets');
+  const exRepsInput = document.getElementById('ex-reps');
+  const exWeightInput = document.getElementById('ex-weight');
+  const todayExercisesEl = document.getElementById('today-exercises');
+
+  workoutForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = exNameInput.value.trim();
+    if (!name) return;
+    const day = getDay(today);
+    day.exercises.push({
+      name: name,
+      sets: exSetsInput.value ? Number(exSetsInput.value) : null,
+      reps: exRepsInput.value ? Number(exRepsInput.value) : null,
+      weight: exWeightInput.value ? Number(exWeightInput.value) : null,
+      loggedAt: new Date().toISOString()
+    });
+    saveData();
+    workoutForm.reset();
+    exNameInput.focus();
+    renderAll();
+  });
+
+  function exerciseSummary(ex) {
+    const parts = [];
+    if (ex.sets) parts.push(ex.sets + ' sets');
+    if (ex.reps) parts.push(ex.reps + ' reps');
+    if (ex.weight) parts.push(ex.weight + ' lbs');
+    return parts.length ? parts.join(' · ') : 'logged';
+  }
+
+  function renderTodayExercises() {
+    const day = data.days[today];
+    todayExercisesEl.innerHTML = '';
+    if (!day || day.exercises.length === 0) {
+      todayExercisesEl.innerHTML = '<div class="empty-state">No exercises logged yet today.</div>';
+      return;
+    }
+    day.exercises.forEach((ex, idx) => {
+      const item = document.createElement('div');
+      item.className = 'exercise-item';
+      item.innerHTML = `
+        <div>
+          <strong>${escapeHtml(ex.name)}</strong>
+          <div class="meta">${escapeHtml(exerciseSummary(ex))}</div>
+        </div>
+        <button class="danger" data-idx="${idx}">Remove</button>
+      `;
+      item.querySelector('button').addEventListener('click', () => {
+        day.exercises.splice(idx, 1);
+        saveData();
+        renderAll();
+      });
+      todayExercisesEl.appendChild(item);
+    });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // ---------- History ----------
+  const historyListEl = document.getElementById('history-list');
+
+  function renderHistory() {
+    const dates = Object.keys(data.days).sort().reverse();
+    historyListEl.innerHTML = '';
+    if (dates.length === 0) {
+      historyListEl.innerHTML = '<div class="empty-state">No history yet — complete a meditation session or log an exercise to get started.</div>';
+      return;
+    }
+    dates.forEach(iso => {
+      const day = data.days[iso];
+      if (day.meditationSessions.length === 0 && day.exercises.length === 0) return;
+      const entry = document.createElement('div');
+      entry.className = 'history-entry';
+
+      const medMinutes = day.meditationSessions.reduce((sum, s) => sum + s.minutes, 0);
+      let badges = '';
+      if (medMinutes > 0) badges += `<span class="badge">🧘 ${medMinutes} min meditated</span> `;
+      if (day.exercises.length > 0) badges += `<span class="badge">🏋️ ${day.exercises.length} exercise${day.exercises.length > 1 ? 's' : ''}</span>`;
+
+      let exercisesHtml = '';
+      if (day.exercises.length > 0) {
+        exercisesHtml = '<div class="history-exercises">' +
+          day.exercises.map(ex => `<div>• ${escapeHtml(ex.name)} — ${escapeHtml(exerciseSummary(ex))}</div>`).join('') +
+          '</div>';
+      }
+
+      entry.innerHTML = `
+        <div class="history-date">
+          <span>${formatDateLabel(iso)}${iso === today ? ' (Today)' : ''}</span>
+          <span class="day-actions"><button class="danger" data-date="${iso}">Delete Day</button></span>
+        </div>
+        <div>${badges}</div>
+        ${exercisesHtml}
+      `;
+      entry.querySelector('.day-actions button').addEventListener('click', () => {
+        if (confirm('Delete all records for ' + formatDateLabel(iso) + '?')) {
+          delete data.days[iso];
+          saveData();
+          renderAll();
+        }
+      });
+      historyListEl.appendChild(entry);
+    });
+  }
+
+  // ---------- Stats ----------
+  function renderStats() {
+    const dates = Object.keys(data.days).filter(iso => {
+      const d = data.days[iso];
+      return d.meditationSessions.length > 0 || d.exercises.length > 0;
+    }).sort();
+
+    let totalSessions = 0;
+    let totalMinutes = 0;
+    dates.forEach(iso => {
+      const d = data.days[iso];
+      totalSessions += d.meditationSessions.length;
+      totalMinutes += d.meditationSessions.reduce((sum, s) => sum + s.minutes, 0);
+    });
+
+    // streak: consecutive days up to today with any activity
+    let streak = 0;
+    let cursor = new Date(today + 'T00:00:00');
+    while (true) {
+      const iso = cursor.getFullYear() + '-' + String(cursor.getMonth() + 1).padStart(2, '0') + '-' + String(cursor.getDate()).padStart(2, '0');
+      const d = data.days[iso];
+      if (d && (d.meditationSessions.length > 0 || d.exercises.length > 0)) {
+        streak++;
+        cursor.setDate(cursor.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+
+    document.getElementById('stat-streak').textContent = streak;
+    document.getElementById('stat-total-sessions').textContent = totalSessions;
+    document.getElementById('stat-total-minutes').textContent = totalMinutes;
+  }
+
+  function renderAll() {
+    renderTodayExercises();
+    renderHistory();
+    renderStats();
+  }
+
+  renderAll();
+})();
+</script>
+</body>
+</html>
