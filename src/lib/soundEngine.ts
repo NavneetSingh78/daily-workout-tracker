@@ -21,7 +21,7 @@ class AmbientSoundEngine {
 
   setVolume(pct: number) {
     if (this.masterGain && this.ctx) {
-      this.masterGain.gain.setTargetAtTime((pct / 100) * 0.6, this.ctx.currentTime, 0.1);
+      this.masterGain.gain.setTargetAtTime((pct / 100) * 0.75, this.ctx.currentTime, 0.1);
     }
   }
 
@@ -133,7 +133,7 @@ class AmbientSoundEngine {
   private startOm() {
     const ctx = this.ctx!;
     const fundamentals = [136.1, 272.2, 408.3];
-    const baseLevels = [0.22, 0.07, 0.03];
+    const baseLevels = [0.38, 0.16, 0.07];
     const gains: GainNode[] = [];
     fundamentals.forEach((f, i) => {
       const osc = ctx.createOscillator();
@@ -155,7 +155,7 @@ class AmbientSoundEngine {
       if (phase < 0.15) env = phase / 0.15;
       else if (phase < 0.65) env = 1;
       else if (phase < 0.85) env = 1 - (phase - 0.65) / 0.2;
-      else env = 0.05;
+      else env = 0.25;
       gains.forEach((g, i) => {
         g.gain.linearRampToValueAtTime(baseLevels[i] * env, ctx.currentTime + 0.1);
       });
